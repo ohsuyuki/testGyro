@@ -7,11 +7,13 @@
 
 import UIKit
 import SwiftUI
+import CoreMotion
 
 class SceneDelegate: UIResponder, UIWindowSceneDelegate {
 
     var window: UIWindow?
-
+    var viewModel: ViewModel = ViewModel()
+    let motionManager = CMMotionManager()
 
     func scene(_ scene: UIScene, willConnectTo session: UISceneSession, options connectionOptions: UIScene.ConnectionOptions) {
         // Use this method to optionally configure and attach the UIWindow `window` to the provided UIWindowScene `scene`.
@@ -19,7 +21,7 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         // This delegate does not imply the connecting scene or session are new (see `application:configurationForConnectingSceneSession` instead).
 
         // Create the SwiftUI view that provides the window contents.
-        let contentView = ContentView()
+        let contentView = ContentView(viewModel: viewModel)
 
         // Use a UIHostingController as window root view controller.
         if let windowScene = scene as? UIWindowScene {
@@ -40,6 +42,7 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
     func sceneDidBecomeActive(_ scene: UIScene) {
         // Called when the scene has moved from an inactive state to an active state.
         // Use this method to restart any tasks that were paused (or not yet started) when the scene was inactive.
+        startAccelerometer()
     }
 
     func sceneWillResignActive(_ scene: UIScene) {
@@ -61,3 +64,57 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
 
 }
 
+
+struct SceneDelegate_Previews: PreviewProvider {
+    static var previews: some View {
+        Text("Hello, Goodbye")
+    }
+}
+
+extension SceneDelegate {
+    @discardableResult
+    func startAccelerometer() -> Bool {
+        guard motionManager.isAccelerometerAvailable == true else {
+            return false
+        }
+
+        motionManager.accelerometerUpdateInterval = 0.2
+        motionManager.startAccelerometerUpdates(to: OperationQueue.current!) { [weak self] (accelerometerData, error) in
+            print("startAccelerometerUpdates")
+            guard let `self` = self else {
+                return
+            }
+
+            print("check error")
+            guard error == nil else {
+                self.viewModel.error = error
+                return
+            }
+
+            print("check accelerometerData")
+            guard let accelerometerData = accelerometerData else {
+                return
+            }
+
+            print("set accelerometerData")
+            self.viewModel.set(accelerometerData: accelerometerData)
+        }
+
+        return true
+    }
+
+}
+
+class ViewModel: ObservableObject {
+    @Published var x: CGFloat = 0.0
+    @Published var y: CGFloat = 0.0
+    @Published var z: CGFloat = 0.0
+    @Published var error: Error? = nil
+
+    func set(accelerometerData: CMAccelerometerData) {
+        x = CGFloat(accelerometerData.acceleration.x)
+        y = CGFloat(accelerometerData.acceleration.y)
+        z = CGFloat(accelerometerData.acceleration.z)
+        print("x: \(x), y: \(y), z: \(z)")
+    }
+}
